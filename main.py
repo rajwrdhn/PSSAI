@@ -1,8 +1,17 @@
 #!/usr/bin/python3
 
 import array
+import datetime
+import math
 import sys
 
+
+def ffs(value):
+    if value == 0:
+        return None
+    if (value & (value - 1)) != 0:
+        value &= ~(value - 1)
+    return int(math.log(value, 2))
 
 # Schedules are implemented as arrays of bit fields.
 # Every traffic light has its own bit, with a 1 indicating the light being
@@ -15,6 +24,16 @@ import sys
 
 # time resolution
 TR = 1 # schedule entries per second
+
+
+from trambus import *
+
+# Bitmask for each time unit of the day which traffic light states are important
+# regarding the trams/busses
+trambus_day_tl_mask  = None
+# Value the traffic light state bit field is supposed to have after applying the
+# bitmask
+trambus_day_tl_value = None
 
 
 # Bit shifts for each of the traffic lights
@@ -42,6 +61,41 @@ TLP_MIN_GREEN_TIME = [
     round(19.20 * TR + 0.5), # west:  19.20 s
     round(16.80 * TR + 0.5)  # south: 16.80 s
 ]
+
+
+def build_trambus_schedules():
+    global trambus_day_tl_mask
+    global trambus_day_tl_value
+
+    trambus_day_tl_mask = array.array('h')
+    trambus_day_tl_value = array.array('h')
+    for i in range(86400 * TR):
+        trambus_day_tl_mask.append(0)
+        trambus_day_tl_value.append(0)
+
+    for time in Tram10_3_1 + Tram4_3_1 + Bus64_3_1:
+        # Ensure east's straight is green and left is red; all other traffic
+        # lights we don't have to care about because they'll conflict (or won't)
+        # with the green light anyway.
+        index = (time.hour * 60 + time.minute) * 60 * TR
+        trambus_day_tl_mask[index]  = (1 << TLC_EAST_SR) | (1 << TLC_EAST_L)
+        trambus_day_tl_value[index] = (1 << TLC_EAST_SR)
+
+    for time in Tram10_1_3 + Tram4_1_3 + Bus64_1_3:
+        index = (time.hour * 60 + time.minute) * 60 * TR
+        trambus_day_tl_mask[index]  = (1 << TLC_WEST_SR) | (1 << TLC_WEST_L)
+        trambus_day_tl_value[index] = (1 << TLC_WEST_SR)
+
+    for time in Bus63_3_2:
+        index = (time.hour * 60 + time.minute) * 60 * TR
+        trambus_day_tl_mask[index]  = (1 << TLC_EAST_L)
+        trambus_day_tl_value[index] = (1 << TLC_EAST_L)
+
+    for time in Bus63_2_3:
+        index = (time.hour * 60 + time.minute) * 60 * TR
+        trambus_day_tl_mask[index]  = (1 << TLC_SOUTH_SR)
+        trambus_day_tl_value[index] = (1 << TLC_SOUTH_SR)
+
 
 
 tl_conflict_mask = None
@@ -135,11 +189,12 @@ def build_conflict_mask():
 
 
 class Schedule:
-    def __init__(self, seconds):
+    def __init__(self, seconds, start_time):
         self.data = array.array('h')
         for i in range(seconds * TR):
             self.data.append((1 << TLP_EAST) | (1 << TLP_NORTH)
                            | (1 << TLP_WEST) | (1 << TLP_SOUTH))
+        self.start_index = (start_time.hour * 60 + start_time.minute) * 60 * TR
 
     def length(self):
         return self.data.buffer_info()[1]
@@ -158,6 +213,8 @@ class Schedule:
         # - north+south straight/right
         # - north+south left
         # XXX: Also, it's really bad.
+        # (But note: The nice thing about this is that it works with trams,
+        #  because the left turn is red while straight is green)
         for i in range(0, self.length(), 120 * TR):
             for offset in range(0, 120 * TR, 60 * TR):
                 tl = offset // (60 * TR)
@@ -172,6 +229,10 @@ class Schedule:
                     self.data[i + offset + 30 * TR - j] &= 0xff
                     self.data[i + offset + 30 * TR + j] &= 0xff
                     self.data[i + offset + 60 * TR - j] &= 0xff
+
+        for i in range(self.start_index, self.start_index + self.length()):
+            if trambus_day_tl_value[i]:
+                self.make_green(i - self.start_index, ffs(trambus_day_tl_value[i]))
 
         if not self.satisfied(True):
             print("Error: Initial schedule does not satisfy contraints", file=sys.stderr)
@@ -247,14 +308,26 @@ class Schedule:
                         return False
 
         # e) The Buses and Trams should always pass when they are scheduled
-        # (TODO)
+        # (Note: Since the interpretation "always pass exactly when they are
+        #  scheduled" fits this constraint, and it hopefully makes things
+        #  easier, we are going to employ it, even though it is pretty stupid
+        #  (a realistic interpretation would be "should be able to pass within a
+        #   10 second window 30 seconds after the scheduled time"))
+        for i in range(self.start_index, self.start_index + self.length()):
+            if (self.data[i - self.start_index] & trambus_day_tl_mask[i]) != trambus_day_tl_value[i]:
+                if verbose:
+                    print("Error: Schedule does not satisfy constraint E", file=sys.stderr)
+                    print("(", self.data[i - self.start_index], "&", trambus_day_tl_mask[i], "!=",
+                          trambus_day_tl_value[i], ")", file=sys.stderr)
+                return False
 
         return True
 
 
+build_trambus_schedules()
 build_conflict_mask()
 
 
-rush = Schedule(7200)
+rush = Schedule(7200, datetime.time(7, 30, 0))
 
 rush.initial_constraints()
