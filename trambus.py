@@ -7,11 +7,11 @@ import datetime
 #represents tram 10 coming from street 3 towards 1
 Tram10_3_1=[datetime.time(6,2,0),datetime.time(6,19,0),datetime.time(6,29,0),datetime.time(6,49,0),datetime.time(7,4,0),datetime.time(7,19,0),
 			datetime.time(7,34,0),datetime.time(7,49,0),datetime.time(8,4,0),datetime.time(8,19,0),datetime.time(8,34,0),datetime.time(8,49,0),
-			datetime.time(9,4,0),datetime.time(9,17,0),datetime.time(9,34,0),datetime.time(9,47,0),datetime.time(10,02,0),datetime.time(10,17,0),
+			datetime.time(9,4,0),datetime.time(9,17,0),datetime.time(9,34,0),datetime.time(9,47,0),datetime.time(10,2,0),datetime.time(10,17,0),
 			datetime.time(11,17,0),datetime.time(12,17,0),datetime.time(13,17,0),datetime.time(14,17,0),datetime.time(15,17,0),datetime.time(16,17,0),
 			datetime.time(17,17,0),datetime.time(10,32,0),datetime.time(11,32,0),datetime.time(12,32,0),datetime.time(13,32,0),datetime.time(14,32,0),
-			datetime.time(15,32,0),datetime.time(16,32,0),datetime.time(17,32,0),datetime.time(11,02,0),datetime.time(12,02,0),datetime.time(13,02,0),
-			datetime.time(14,02,0),datetime.time(15,02,0),datetime.time(16,02,0),datetime.time(17,02,0),datetime.time(10,47,0),datetime.time(11,47,0),
+			datetime.time(15,32,0),datetime.time(16,32,0),datetime.time(17,32,0),datetime.time(11,2,0),datetime.time(12,2,0),datetime.time(13,2,0),
+			datetime.time(14,2,0),datetime.time(15,2,0),datetime.time(16,2,0),datetime.time(17,2,0),datetime.time(10,47,0),datetime.time(11,47,0),
 			datetime.time(12,47,0),datetime.time(13,47,0),datetime.time(14,47,0),datetime.time(15,47,0),datetime.time(16,47,0),datetime.time(17,47,0),
 			datetime.time(18,2,0),datetime.time(18,19,0),datetime.time(18,34,0),datetime.time(18,49,0),datetime.time(19,2,0),datetime.time(19,17,0),
 			datetime.time(19,32,0),datetime.time(19,47,0),datetime.time(20,2,0),datetime.time(20,17,0),datetime.time(20,32,0),datetime.time(20,47,0)
@@ -63,8 +63,10 @@ Tram4_1_3=[datetime.time(6,8,0),datetime.time(6,22,0),datetime.time(6,28,0),date
 			datetime.time(20,24,0),datetime.time(20,44,0),datetime.time(18,54,0),
 			]
 
-#represents bus 64 from strasse 4 towards 1
-Bus64_4_1=[datetime.time(6,3,0),datetime.time(6,16,0),datetime.time(6,28,0),datetime.time(6,43,0),datetime.time(6,58,0),datetime.time(7,3,0),
+# http://www.openstreetmap.org/relation/3165980#map=17/51.04340/13.78214
+# Actually, the day we took the measurement it went from 2 to 1, but that was likely just some alternative routing
+# So this is from 3 to 1
+Bus64_3_1=[datetime.time(6,3,0),datetime.time(6,16,0),datetime.time(6,28,0),datetime.time(6,43,0),datetime.time(6,58,0),datetime.time(7,3,0),
 			datetime.time(7,16,0),datetime.time(7,28,0),datetime.time(7,43,0),datetime.time(7,58,0),datetime.time(8,3,0),datetime.time(8,16,0),
 			datetime.time(8,28,0),datetime.time(8,43,0),datetime.time(8,58,0),datetime.time(9,3,0),datetime.time(9,16,0),datetime.time(9,28,0),
 			datetime.time(9,43,0),datetime.time(9,58,0),datetime.time(10,3,0),datetime.time(10,16,0),datetime.time(10,28,0),datetime.time(10,43,0),
@@ -79,7 +81,8 @@ Bus64_4_1=[datetime.time(6,3,0),datetime.time(6,16,0),datetime.time(6,28,0),date
 			datetime.time(20,28,0),datetime.time(20,43,0),datetime.time(20,58,0)
 			]
 
-Bus64_1_4=[datetime.time(6,7,0),datetime.time(6,25,0),datetime.time(6,40,0),datetime.time(6,56,0),datetime.time(7,7,0),datetime.time(7,25,0),
+# See above, this is from 1 to 3
+Bus64_1_3=[datetime.time(6,7,0),datetime.time(6,25,0),datetime.time(6,40,0),datetime.time(6,56,0),datetime.time(7,7,0),datetime.time(7,25,0),
 			datetime.time(7,40,0),datetime.time(7,56,0),datetime.time(8,7,0),datetime.time(8,25,0),datetime.time(8,40,0),datetime.time(8,56,0),
 			datetime.time(9,7,0),datetime.time(9,25,0),datetime.time(9,40,0),datetime.time(9,56,0),datetime.time(10,7,0),datetime.time(10,25,0),
 			datetime.time(10,40,0),datetime.time(10,56,0),datetime.time(11,7,0),datetime.time(11,25,0),datetime.time(11,40,0),datetime.time(11,56,0),
@@ -89,13 +92,11 @@ Bus64_1_4=[datetime.time(6,7,0),datetime.time(6,25,0),datetime.time(6,40,0),date
 			datetime.time(16,40,0),datetime.time(16,56,0),datetime.time(17,7,0),datetime.time(17,25,0),datetime.time(17,40,0),datetime.time(17,56,0),
 			datetime.time(18,7,0),datetime.time(18,25,0),datetime.time(18,40,0),datetime.time(18,56,0),datetime.time(19,7,0),datetime.time(19,25,0),
 			datetime.time(19,40,0),datetime.time(19,56,0),datetime.time(20,7,0),datetime.time(20,25,0),datetime.time(20,40,0),datetime.time(20,56,0),
-			
 			]
 
-#represents bus 63
-Bus63=[datetime.time(6,9,0),datetime.time(6,16,0),datetime.time(6,18,0)]
+# http://www.openstreetmap.org/relation/611113#map=17/51.04285/13.78300
+# From 2 to 3
+Bus63_2_3=[datetime.time(6,9,0),datetime.time(6,18,0)]
 
-print Tram10_3_1[1]
-print Tram10_3_1[0]
-print Tram10_3_1[2]
-print Tram10_3_1[3]
+# From 3 to 2
+Bus63_3_2=[datetime.time(6,16,0)]
