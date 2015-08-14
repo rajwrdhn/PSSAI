@@ -130,8 +130,9 @@ def build_conflict_mask():
         # Does not conflict with own left turn
         left &= ~(1 << i)
 
-        # Conflicts with opposite road's pedestrian TL
-        pedestrian &= ~(1 << ((i + 2) % 4))
+        # Conflicts with parallel roads' pedestrian TLs
+        pedestrian &= ~(1 << ((i + 1) % 4))
+        pedestrian &= ~(1 << ((i + 3) % 4))
 
         tl_conflict_mask[i] =  straight \
                             | (left << 4) \
@@ -151,8 +152,9 @@ def build_conflict_mask():
         # Does not conflict with opposite
         left &= ~(1 << ((i + 2) % 4))
 
-        # Does not conflict with the target road
-        pedestrian &= ~(1 << ((i + 3) % 4))
+        # Does not conflict with the opposite road or the one to the right
+        pedestrian &= ~(1 << ((i + 1) % 4))
+        pedestrian &= ~(1 << ((i + 2) % 4))
 
         tl_conflict_mask[i + 4] =  straight \
                                 | (left << 4) \
@@ -192,19 +194,153 @@ class Schedule:
     def __init__(self, seconds, start_time):
         self.data = array.array('h')
         for i in range(seconds * TR):
-            self.data.append((1 << TLP_EAST) | (1 << TLP_NORTH)
-                           | (1 << TLP_WEST) | (1 << TLP_SOUTH))
+            self.data.append(0)
+        self.length = self.data.buffer_info()[1]
         self.start_index = (start_time.hour * 60 + start_time.minute) * 60 * TR
-
-    def length(self):
-        return self.data.buffer_info()[1]
+        self.end_index = self.start_index + self.length
 
     def initial_constraints(self):
         # c) Between switching of green phases consider 3 sec of red phase for
         #    all directions.
         # d) Consider a maximum waiting time of 2 min always
 
-        # TODO: Start with the bus/tram schedule. Maybe that's enough.
+        i = self.start_index
+        last_index = i
+        last_config = 0
+        while i < self.end_index:
+            while i < self.end_index and not trambus_day_tl_value[i]:
+                i += 1
+            if trambus_day_tl_value[i] & ((1 << TLC_EAST_SR) | (1 << TLC_WEST_SR)):
+                this_config = 0
+            elif trambus_day_tl_value[i] & ((1 << TLC_EAST_L) | (1 << TLC_WEST_L)):
+                this_config = 1
+            elif trambus_day_tl_value[i] & ((1 << TLC_NORTH_SR) | (1 << TLC_SOUTH_SR)):
+                this_config = 2
+            elif trambus_day_tl_value[i] & ((1 << TLC_NORTH_L) | (1 << TLC_SOUTH_L)):
+                this_config = 3
+            else:
+                break
+
+            time = i - last_index
+            changes = (this_config - last_config) % 4
+
+            # FIXME: Works with the 17:00 schedule by accident...
+            if time == 0 and changes == 0:
+                i += 1
+                continue
+
+            while changes == 0 or time / changes > 30:
+                changes += 4
+            minimal_time = changes // 4 * 53
+            for cycle_i in range(last_config, last_config + changes % 4):
+                if cycle_i % 4 == 0:
+                    minimal_time += 20
+                elif cycle_i % 4 == 2:
+                    minimal_time += 25
+                else:
+                    minimal_time += 4
+            if time < minimal_time:
+                print("Error building initial schedule", file=sys.stderr)
+                print(time, changes, time / changes, minimal_time, file=sys.stderr)
+                exit(1)
+
+            average_time = time / changes
+            if average_time >= 25:
+                times = [None] * changes
+                remaining_time = time
+
+                for j in range(changes):
+                    times[j] = round(remaining_time / (changes - j))
+                    remaining_time -= times[j]
+            elif changes >= 4:
+                times = [None] * changes
+                remaining_time = time
+
+                rel_i = changes // 4 * 4
+                for cycle_i in range(last_config, last_config + changes % 4):
+                    if cycle_i % 4 == 0:
+                        times[rel_i] = 20
+                    elif cycle_i % 4 == 2:
+                        times[rel_i] = 25
+                    else:
+                        times[rel_i] = 4
+                    remaining_time -= times[rel_i]
+                    rel_i += 1
+
+                config = last_config
+                full_cycle_changes = changes // 4 * 4
+
+                for j in range(full_cycle_changes):
+                    average_time = remaining_time / (full_cycle_changes - j)
+                    if average_time >= 25:
+                        times[j] = round(average_time)
+                    else:
+                        minimal_time = remaining_time - 30 * (full_cycle_changes - j - 1)
+                        if config == 0:
+                            times[j] = max(minimal_time, 20)
+                        elif config == 2:
+                            times[j] = max(minimal_time, 25)
+                        else:
+                            times[j] = max(minimal_time, 4)
+                    remaining_time -= times[j]
+                    config = (config + 1) % 4
+            else:
+                print("FIXME: Need to be able to handle changes < 4", file=sys.stderr)
+                exit(1)
+
+            config = last_config
+            time = last_index - self.start_index
+            for length in times:
+                for j in range((length - 3) * TR):
+                    if config == 0:
+                        for tl in [TLC_EAST_SR, TLC_WEST_SR, TLP_NORTH, TLP_SOUTH]:
+                            self.make_green(time + j, tl)
+                    elif config == 1:
+                        for tl in [TLC_EAST_L, TLC_WEST_L]:
+                            self.make_green(time + j, tl)
+                    elif config == 2:
+                        for tl in [TLC_NORTH_SR, TLC_SOUTH_SR, TLP_EAST, TLP_WEST]:
+                            self.make_green(time + j, tl)
+                    else:
+                        for tl in [TLC_NORTH_L, TLC_SOUTH_L]:
+                            self.make_green(time + j, tl)
+
+                config = (config + 1) % 4
+                time += length
+
+            if config != this_config:
+                print("FIXME: config != this_config", file=sys.stderr)
+                print(config, this_config, file=sys.stderr)
+                exit(1)
+            if time + self.start_index != i:
+                print("FIXME: time + self.start_index != i", file=sys.stderr)
+                print(time + self.start_index, i, file=sys.stderr)
+                exit(1)
+
+            last_config = this_config
+            last_index = i
+            i += 1
+
+        # And now enter the last one
+        config - last_config
+        time = last_index - self.start_index
+        while time < self.length:
+            for i in range(27 * TR):
+                if config == 0:
+                    for tl in [TLC_EAST_SR, TLC_WEST_SR, TLP_NORTH, TLP_SOUTH]:
+                        self.make_green(time + i, tl)
+                elif config == 1:
+                    for tl in [TLC_EAST_L, TLC_WEST_L]:
+                        self.make_green(time + i, tl)
+                elif config == 2:
+                    for tl in [TLC_NORTH_SR, TLC_SOUTH_SR, TLP_EAST, TLP_WEST]:
+                        self.make_green(time + i, tl)
+                else:
+                    for tl in [TLC_NORTH_L, TLC_SOUTH_L]:
+                        self.make_green(time + i, tl)
+
+            config = (config + 1) % 4
+            time += 30
 
         # XXX: This assumes the best strategy is having the following basic
         # schedule:
@@ -215,24 +351,24 @@ class Schedule:
         # XXX: Also, it's really bad.
         # (But note: The nice thing about this is that it works with trams,
         #  because the left turn is red while straight is green)
-        for i in range(0, self.length(), 120 * TR):
-            for offset in range(0, 120 * TR, 60 * TR):
-                tl = offset // (60 * TR)
-                # d)
-                self.make_green(i + offset, tl)
-                self.make_green(i + offset, tl + 2)
-                self.make_green(i + offset + 30 * TR, tl + 4)
-                self.make_green(i + offset + 30 * TR, tl + 6)
-                # c) -- switch off pedestrian lights
-                for j in range(1, 3 * TR + 1):
-                    self.data[i + offset + j] &= 0xff
-                    self.data[i + offset + 30 * TR - j] &= 0xff
-                    self.data[i + offset + 30 * TR + j] &= 0xff
-                    self.data[i + offset + 60 * TR - j] &= 0xff
+        #for i in range(0, self.length, 120 * TR):
+        #    for offset in range(0, 120 * TR, 60 * TR):
+        #        tl = offset // (60 * TR)
+        #        # d)
+        #        self.make_green(i + offset, tl)
+        #        self.make_green(i + offset, tl + 2)
+        #        self.make_green(i + offset + 30 * TR, tl + 4)
+        #        self.make_green(i + offset + 30 * TR, tl + 6)
+        #        # c) -- switch off pedestrian lights
+        #        for j in range(1, 3 * TR + 1):
+        #            self.data[i + offset + j] &= 0xff
+        #            self.data[i + offset + 30 * TR - j] &= 0xff
+        #            self.data[i + offset + 30 * TR + j] &= 0xff
+        #            self.data[i + offset + 60 * TR - j] &= 0xff
 
-        for i in range(self.start_index, self.start_index + self.length()):
-            if trambus_day_tl_value[i]:
-                self.make_green(i - self.start_index, ffs(trambus_day_tl_value[i]))
+        #for i in range(self.start_index, self.end_index):
+        #    if trambus_day_tl_value[i]:
+        #        self.make_green(i - self.start_index, ffs(trambus_day_tl_value[i]))
 
         if not self.satisfied(True):
             print("Error: Initial schedule does not satisfy contraints", file=sys.stderr)
@@ -250,7 +386,7 @@ class Schedule:
         # just make the final ten seconds of their green phase red. It's the
         # same thing.
         green_time = 4 * [0]
-        for i in range(self.length()):
+        for i in range(self.length):
             configuration = self.data[i]
             for j in range(4):
                 if configuration & (1 << (j + 8)):
@@ -258,12 +394,13 @@ class Schedule:
                 elif green_time[j] > 0 and green_time[j] < TLP_MIN_GREEN_TIME[j]:
                     if verbose:
                         print("Error: Schedule does not satisfy constraint A", file=sys.stderr)
+                        print(i, j, configuration, green_time, file=sys.stderr)
                     return False
 
         # 0) Two conflicting directions cannot be green at the same time
         # b) It is not allowed to have green lights for pedestrians when the
         #    cars can cross their way, except if both go in the same direction.
-        for i in range(self.length()):
+        for i in range(self.length):
             if not tl_config_valid[self.data[i]]:
                 if verbose:
                     print("Error: Schedule does not satisfy contraints 0/B", file=sys.stderr)
@@ -275,7 +412,7 @@ class Schedule:
         #  anywhere", so we'll just ignore that one)
         last_configuration = None
         first_totally_red = None
-        for i in range(self.length()):
+        for i in range(self.length):
             configuration = self.data[i]
             if last_configuration is not None and configuration != last_configuration:
                 if last_configuration:
@@ -295,7 +432,7 @@ class Schedule:
 
         # d) Consider a maximum waiting time of 2 min always
         red_time = 12 * [0]
-        for i in range(self.length()):
+        for i in range(self.length):
             configuration = self.data[i]
             for j in range(8):
                 if configuration & (1 << j):
@@ -313,11 +450,11 @@ class Schedule:
         #  easier, we are going to employ it, even though it is pretty stupid
         #  (a realistic interpretation would be "should be able to pass within a
         #   10 second window 30 seconds after the scheduled time"))
-        for i in range(self.start_index, self.start_index + self.length()):
+        for i in range(self.start_index, self.end_index):
             if (self.data[i - self.start_index] & trambus_day_tl_mask[i]) != trambus_day_tl_value[i]:
                 if verbose:
                     print("Error: Schedule does not satisfy constraint E", file=sys.stderr)
-                    print("(", self.data[i - self.start_index], "&", trambus_day_tl_mask[i], "!=",
+                    print(i - self.start_index, "(", self.data[i - self.start_index], "&", trambus_day_tl_mask[i], "!=",
                           trambus_day_tl_value[i], ")", file=sys.stderr)
                 return False
 
