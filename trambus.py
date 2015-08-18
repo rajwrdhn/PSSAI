@@ -96,7 +96,29 @@ Bus64_1_3=[datetime.time(6,7,0),datetime.time(6,25,0),datetime.time(6,40,0),date
 
 # http://www.openstreetmap.org/relation/611113#map=17/51.04285/13.78300
 # From 2 to 3
-Bus63_2_3=[datetime.time(6,9,0),datetime.time(6,18,0)]
+Bus63_2_3=[datetime.time(6,9,0),datetime.time(6,18,0),datetime.time(6,30,0),datetime.time(6,45,0),datetime.time(7,0,0),datetime.time(7,15,0),
+		datetime.time(7,30,0),datetime.time(7,45,0),datetime.time(8,0,0),datetime.time(8,15,0),datetime.time(8,30,0),datetime.time(8,45,0),datetime.time(9,0,0),
+		datetime.time(9,15,0),datetime.time(9,30,0),datetime.time(9,45,0),datetime.time(10,0,0),datetime.time(10,15,0),
+		datetime.time(10,30,0),datetime.time(10,45,0),datetime.time(11,0,0),datetime.time(11,15,0),datetime.time(11,30,0),datetime.time(11,45,0),datetime.time(12,0,0),
+		datetime.time(12,15,0),datetime.time(12,30,0),datetime.time(12,45,0),datetime.time(13,0,0),datetime.time(13,15,0),
+		datetime.time(13,30,0),datetime.time(13,45,0),datetime.time(14,0,0),datetime.time(14,15,0),datetime.time(14,30,0),datetime.time(14,45,0),datetime.time(15,0,0),
+		datetime.time(15,15,0),datetime.time(15,30,0),datetime.time(15,45,0),datetime.time(16,0,0),datetime.time(16,15,0),
+		datetime.time(16,30,0),datetime.time(16,45,0),datetime.time(17,0,0),datetime.time(17,14,0),datetime.time(17,15,0),datetime.time(17,29,0),
+		datetime.time(17,30,0),datetime.time(17,45,0),datetime.time(18,0,0),datetime.time(18,15,0),datetime.time(18,30,0),datetime.time(18,45,0),datetime.time(19,0,0),
+		datetime.time(19,15,0),datetime.time(19,30,0),datetime.time(19,45,0),datetime.time(20,0,0),datetime.time(20,15,0),
+		datetime.time(20,30,0),datetime.time(20,45,0),datetime.time(21,0,0)]
 
 # From 3 to 2
-Bus63_3_2=[datetime.time(6,16,0)]
+Bus63_3_2=[datetime.time(6,16,0),datetime.time(6,27,0),datetime.time(6,44,0),datetime.time(6,59,0),datetime.time(7,14,0),datetime.time(7,29,0),
+		datetime.time(7,44,0),datetime.time(7,59,0),datetime.time(8,14,0),datetime.time(8,29,0),datetime.time(8,44,0),datetime.time(8,59,0),
+		datetime.time(9,14,0),datetime.time(9,29,0),datetime.time(9,44,0),
+		datetime.time(9,59,0),datetime.time(10,14,0),datetime.time(10,29,0),datetime.time(10,44,0),datetime.time(10,59,0),
+		datetime.time(11,14,0),datetime.time(11,29,0),
+		datetime.time(11,44,0),datetime.time(11,59,0),datetime.time(12,14,0),datetime.time(12,29,0),datetime.time(12,44,0),
+		datetime.time(12,59,0),datetime.time(13,14,0),datetime.time(13,29,0),datetime.time(13,44,0),datetime.time(13,59,0),
+		datetime.time(14,14,0),datetime.time(14,29,0),datetime.time(14,44,0),datetime.time(14,59,0),datetime.time(15,14,0),datetime.time(15,29,0),
+		datetime.time(15,44,0),datetime.time(15,59,0),datetime.time(16,14,0),datetime.time(16,29,0),datetime.time(16,44,0),datetime.time(16,59,0),
+		datetime.time(17,14,0),datetime.time(17,29,0),datetime.time(17,44,0),datetime.time(17,59,0),datetime.time(18,14,0),datetime.time(18,29,0),
+		datetime.time(18,44,0),datetime.time(18,59,0),datetime.time(19,14,0),datetime.time(19,29,0),datetime.time(19,44,0),
+		datetime.time(19,59,0),datetime.time(20,14,0),datetime.time(20,29,0),datetime.time(20,44,0),datetime.time(20,59,0)
+		]
