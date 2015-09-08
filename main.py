@@ -26,7 +26,7 @@ def ffs(value):
 TR = 1 # schedule entries per second
 
 
-from trambus import *
+from trambus2 import *
 
 # Bitmask for each time unit of the day which traffic light states are important
 # regarding the trams/busses
@@ -61,40 +61,6 @@ TLP_MIN_GREEN_TIME = [
     round(19.20 * TR + 0.5), # west:  19.20 s
     round(16.80 * TR + 0.5)  # south: 16.80 s
 ]
-
-
-def build_trambus_schedules():
-    global trambus_day_tl_mask
-    global trambus_day_tl_value
-
-    trambus_day_tl_mask = array.array('h')
-    trambus_day_tl_value = array.array('h')
-    for i in range(86400 * TR):
-        trambus_day_tl_mask.append(0)
-        trambus_day_tl_value.append(0)
-
-    for time in Tram10_3_1 + Tram4_3_1 + Bus64_3_1:
-        # Ensure east's straight is green and left is red; all other traffic
-        # lights we don't have to care about because they'll conflict (or won't)
-        # with the green light anyway.
-        index = (time.hour * 60 + time.minute) * 60 * TR
-        trambus_day_tl_mask[index]  = (1 << TLC_EAST_SR) | (1 << TLC_EAST_L)
-        trambus_day_tl_value[index] = (1 << TLC_EAST_SR)
-
-    for time in Tram10_1_3 + Tram4_1_3 + Bus64_1_3:
-        index = (time.hour * 60 + time.minute) * 60 * TR
-        trambus_day_tl_mask[index]  = (1 << TLC_WEST_SR) | (1 << TLC_WEST_L)
-        trambus_day_tl_value[index] = (1 << TLC_WEST_SR)
-
-    for time in Bus63_3_2:
-        index = (time.hour * 60 + time.minute) * 60 * TR
-        trambus_day_tl_mask[index]  = (1 << TLC_EAST_L)
-        trambus_day_tl_value[index] = (1 << TLC_EAST_L)
-
-    for time in Bus63_2_3:
-        index = (time.hour * 60 + time.minute) * 60 * TR
-        trambus_day_tl_mask[index]  = (1 << TLC_SOUTH_SR)
-        trambus_day_tl_value[index] = (1 << TLC_SOUTH_SR)
 
 
 
@@ -190,6 +156,62 @@ def build_conflict_mask():
         tl_config_valid.append(valid)
 
 
+def build_trambus_schedules():
+    global trambus_day_tl_mask
+    global trambus_day_tl_value
+
+    trambus_day_tl_mask = array.array('h')
+    trambus_day_tl_value = array.array('h')
+    for i in range(86400 * TR):
+        trambus_day_tl_mask.append(0)
+        trambus_day_tl_value.append(0)
+
+    for time in Tram10_3_1 + Tram4_3_1 + Bus64_3_1:
+        # Ensure east's straight is green and left is red; all other traffic
+        # lights we don't have to care about because they'll conflict (or won't)
+        # with the green light anyway.
+        index = ((time.hour * 60 + time.minute) * 60 + time.second) * TR
+        trambus_day_tl_mask[index]  |= (1 << TLC_EAST_SR) | (1 << TLC_EAST_L)
+        trambus_day_tl_value[index] |= (1 << TLC_EAST_SR)
+
+    for time in Tram10_1_3 + Tram4_1_3 + Bus64_1_3:
+        index = ((time.hour * 60 + time.minute) * 60 + time.second) * TR
+        trambus_day_tl_mask[index]  |= (1 << TLC_WEST_SR) | (1 << TLC_WEST_L)
+        trambus_day_tl_value[index] |= (1 << TLC_WEST_SR)
+
+    for time in Bus64_2_1:
+        index = ((time.hour * 60 + time.minute) * 60 + time.second) * TR
+        trambus_day_tl_mask[index]  |= (1 << TLC_SOUTH_L)
+        trambus_day_tl_value[index] |= (1 << TLC_SOUTH_L)
+
+    for time in Bus64_1_2:
+        index = ((time.hour * 60 + time.minute) * 60 + time.second) * TR
+        trambus_day_tl_mask[index]  |= (1 << TLC_WEST_SR)
+        trambus_day_tl_value[index] |= (1 << TLC_WEST_SR)
+
+    for time in Bus63_3_2:
+        index = ((time.hour * 60 + time.minute) * 60 + time.second) * TR
+        trambus_day_tl_mask[index]  |= (1 << TLC_EAST_L)
+        trambus_day_tl_value[index] |= (1 << TLC_EAST_L)
+
+    for time in Bus63_2_3:
+        index = ((time.hour * 60 + time.minute) * 60 + time.second) * TR
+        trambus_day_tl_mask[index]  |= (1 << TLC_SOUTH_SR)
+        trambus_day_tl_value[index] |= (1 << TLC_SOUTH_SR)
+
+    # FIXME: We should actually make sure that we didn't accidentally set
+    # TLC_*_L in _tl_value when it wasn't set before but was set in _tl_mask
+    # (i.e. some other tram/bus says it should actually be red). But we'll just
+    # assume this won't happen, and if it does, that the traffic light will
+    # perform some magic that allows the straight-going tram/bus to pass before
+    # the left turn traffic light is switched to green.
+
+    for i in range(86400 * TR):
+        if not tl_config_valid[trambus_day_tl_value[i]]:
+            print("Error: Bus/tram schedule overlap at %02i:%02i:%02i" % (i // 3600, (i // 60) % 60, i % 60), file=sys.stderr)
+            exit(1)
+
+
 class Schedule:
     def __init__(self, seconds, start_time):
         self.data = array.array('h')
@@ -242,6 +264,7 @@ class Schedule:
             if time < minimal_time:
                 print("Error building initial schedule", file=sys.stderr)
                 print(time, changes, time / changes, minimal_time, file=sys.stderr)
+                print("%02i:%02i:%02i" % (i // 3600, (i // 60) % 60, i % 60), file=sys.stderr)
                 exit(1)
 
             average_time = time / changes
@@ -285,8 +308,21 @@ class Schedule:
                     remaining_time -= times[j]
                     config = (config + 1) % 4
             else:
-                print("FIXME: Need to be able to handle changes < 4", file=sys.stderr)
-                exit(1)
+                times = [None] * changes
+                remaining_time = time
+
+                rel_i = 0
+                for cycle_i in range(last_config, last_config + changes):
+                    if cycle_i % 4 == 0:
+                        times[rel_i] = 20
+                    elif cycle_i % 4 == 2:
+                        times[rel_i] = 25
+                    else:
+                        times[rel_i] = 4
+                    remaining_time -= times[rel_i]
+                    rel_i += 1
+
+                times[rel_i - 1] += remaining_time
 
             config = last_config
             time = last_index - self.start_index
@@ -325,7 +361,7 @@ class Schedule:
         config - last_config
         time = last_index - self.start_index
         while time < self.length:
-            for i in range(27 * TR):
+            for i in range(min(self.length - time, 27 * TR)):
                 if config == 0:
                     for tl in [TLC_EAST_SR, TLC_WEST_SR, TLP_NORTH, TLP_SOUTH]:
                         self.make_green(time + i, tl)
@@ -461,10 +497,17 @@ class Schedule:
         return True
 
 
-build_trambus_schedules()
 build_conflict_mask()
+build_trambus_schedules()
 
 
-rush = Schedule(7200, datetime.time(7, 30, 0))
+pre_morning_rush  = Schedule(int(1.5 * 60 * 60), datetime.time( 6,  0, 0)) #  6:00 –  7:30
+morning_rush      = Schedule(int(2.0 * 60 * 60), datetime.time( 7, 30, 0)) #  7:30 –  9:30
+day               = Schedule(int(7.5 * 60 * 60), datetime.time( 9, 30, 0)) #  9:30 – 17:00
+evening_rush      = Schedule(int(2.0 * 60 * 60), datetime.time(17,  0, 0)) # 17:00 – 19:00
+post_evening_rush = Schedule(int(2.0 * 60 * 60), datetime.time(19,  0, 0)) # 19:00 – 21:00
 
-rush.initial_constraints()
+full_day = Schedule(15 * 60 * 60, datetime.time(6, 0, 0)) # 6:00 – 21:00
+
+for sched in pre_morning_rush, morning_rush, day, evening_rush, post_evening_rush, full_day:
+    sched.initial_constraints()
