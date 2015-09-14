@@ -405,7 +405,7 @@ class Schedule:
         #for i in range(self.start_index, self.end_index):
         #    if trambus_day_tl_value[i]:
         #        self.make_green(i - self.start_index, ffs(trambus_day_tl_value[i]))
-
+        # i am getting this when i try to get the output, i ll have another look at it
         if not self.satisfied(True):
             print("Error: Initial schedule does not satisfy contraints", file=sys.stderr)
             exit(1)
@@ -507,7 +507,7 @@ day               = Schedule(int(7.5 * 60 * 60), datetime.time( 9, 30, 0)) #  9:
 evening_rush      = Schedule(int(2.0 * 60 * 60), datetime.time(17,  0, 0)) # 17:00 – 19:00
 post_evening_rush = Schedule(int(2.0 * 60 * 60), datetime.time(19,  0, 0)) # 19:00 – 21:00
 
-full_day = Schedule(15 * 60 * 60, datetime.time(6, 0, 0)) # 6:00 – 21:00
+full_day = Schedule(int(15 * 60 * 60), datetime.time(6, 0, 0)) # 6:00 – 21:00
 
 for sched in pre_morning_rush, morning_rush, day, evening_rush, post_evening_rush, full_day:
     sched.initial_constraints()
