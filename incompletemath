@@ -1,3 +1,8 @@
+#it works and does not give error (and gives a result) and 
+#i ll have to do some more changes just copy and paste the 
+#code below your code and of course i ll have to comment the code also 
+
+
 pre_morning_rush.initial_constraints()
 initial_List = pre_morning_rush.display_Initial()
 def initial_Condition(initial_List):
