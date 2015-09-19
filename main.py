@@ -4,7 +4,7 @@ import array
 import datetime
 import math
 import sys
-
+import random
 
 def ffs(value):
     if value == 0:
@@ -409,7 +409,10 @@ class Schedule:
         if not self.satisfied(True):
             print("Error: Initial schedule does not satisfy contraints", file=sys.stderr)
             exit(1)
-
+    #call for the display and satisfying the initial constraints
+    def display_Initial(self):
+	    #print("print the initial condition:",self.data.tolist())
+	    return self.data.tolist()
     def make_green(self, second, traffic_light):
         # Make it green
         self.data[second] |= (1 << traffic_light)
