@@ -1,0 +1,39 @@
+pre_morning_rush.initial_constraints()
+initial_List = pre_morning_rush.display_Initial()
+def initial_Condition(initial_List):
+	permutated_data = initial_List[:]
+	size = len(permutated_data)
+	for index in range(size):
+		shuffle_data = random.randrange(index,size)
+		permutated_data[shuffle_data] = permutated_data[index]
+		permutated_data[index] = permutated_data[shuffle_data]
+	return permutated_data
+def mathEvaluatuion(permutated_data):
+	result = permutated_data[:]
+	size = len(result)
+	p1, p2 = random.randrange(0,size), random.randrange(0,size)
+	# do this so as not to overshoot tour boundaries
+	exclude = set([p1])
+	if p1 == 0:
+		exclude.add(size-1)
+	else:
+		exclude.add(p1-1)
+	if p1 == size-1:
+		exclude.add(0)
+	else:
+		exclude.add(p1+1) 
+	while p2 in exclude:
+		p2 = random.randrange(0,size)
+	# to ensure we always have p1<p2        
+	if p2<p1:
+		p1, p2 = p2, p1
+	# now reverse the tour segment between p1 and p2   
+	result[p1:p2] = reversed(result[p1:p2])
+	return result
+		
+def Search(initial_List):
+	best_List = {}
+	best_List["permutated_data"] = initial_Condition(initial_List)
+	best_List["condition"] = mathEvaluatuion(best_List["permutated_data"])
+	print(best_List)
+Search(initial_List)
