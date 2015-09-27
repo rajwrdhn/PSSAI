@@ -1,44 +1,84 @@
-#it works and does not give error (and gives a result) and 
-#i ll have to do some more changes just copy and paste the 
-#code below your code and of course i ll have to comment the code also 
-
-
-pre_morning_rush.initial_constraints()
-initial_List = pre_morning_rush.display_Initial()
-def initial_Condition(initial_List):
-	permutated_data = initial_List[:]
-	size = len(permutated_data)
-	for index in range(size):
-		shuffle_data = random.randrange(index,size)
-		permutated_data[shuffle_data] = permutated_data[index]
-		permutated_data[index] = permutated_data[shuffle_data]
-	return permutated_data
-def mathEvaluatuion(permutated_data):
-	result = permutated_data[:]
-	size = len(result)
-	p1, p2 = random.randrange(0,size), random.randrange(0,size)
-	# do this so as not to overshoot tour boundaries
-	exclude = set([p1])
-	if p1 == 0:
-		exclude.add(size-1)
-	else:
-		exclude.add(p1-1)
-	if p1 == size-1:
-		exclude.add(0)
-	else:
-		exclude.add(p1+1) 
-	while p2 in exclude:
-		p2 = random.randrange(0,size)
-	# to ensure we always have p1<p2        
-	if p2<p1:
-		p1, p2 = p2, p1
-	# now reverse the tour segment between p1 and p2   
-	result[p1:p2] = reversed(result[p1:p2])
-	return result
+#inherit the schedule class into the Search class
+#The child class Search consists  of functions getting the initial condition 
+#the stochastic two opt 
+#
+class Search(Schedule):
+	def __init__(self, seconds, start_time):
+		self.seconds = seconds
+		self.start_time= start_time
+		self.schedule = Schedule(seconds, start_time)
 		
-def Search(initial_List):
-	best_List = {}
-	best_List["permutated_data"] = initial_Condition(initial_List)
-	best_List["condition"] = mathEvaluatuion(best_List["permutated_data"])
-	print(best_List)
-Search(initial_List)
+	def get_initial_condition(self, initial_List):
+		permutated_data = initial_List[:]
+		size = len(permutated_data)
+		for index in range(size):
+			shuffle_data = random.randrange(index,size)
+			permutated_data[shuffle_data] = permutated_data[index]
+			permutated_data[index] = permutated_data[shuffle_data]
+		return permutated_data
+	def Iterated_Local_Search(self):
+		#get the initial constraint from the parent class and function 
+		self.schedule.initial_constraints()
+		#satisfy the initial conditions from the parent class and the satisfy function 
+		self.schedule.satisfied(False)
+		#call the parent class method display_Initial
+		initial_List = self.schedule.display_Initial()
+		#print(initial_List)
+		best_List = []
+		best_List = self.get_initial_condition(initial_List)
+		iteration_number = len(best_List)
+		best_List = self.localSearch(best_List, iteration_number) 
+		while (iteration_number> 0):
+			candidate = best_List
+			best_List = self.stochasticTwoOpt(candidate)
+			iteration_number -=1
+		
+		print(best_List)
+	def stochasticTwoOpt(self, permutated_data):
+		result = permutated_data[:]
+		size = len(result)
+		p1, p2 = random.randrange(0,size), random.randrange(0,size)
+		# do this so as not to overshoot tour boundaries
+		exclude = set([p1])
+		if p1 == 0:
+			exclude.add(size-1)
+		else:
+			exclude.add(p1-1)
+		if p1 == size-1:
+			exclude.add(0)
+		else:
+			exclude.add(p1+1) 
+		while p2 in exclude:
+			p2 = random.randrange(0,size)
+		# to ensure we always have p1<p2        
+		if p2<p1:
+			p1, p2 = p2, p1
+		# now reverse the segment between p1 and p2   
+		result[p1:p2] = reversed(result[p1:p2])
+		return result	
+	def acceptanceCriterion(self, best, candidate):
+		# Here we can incorporate search history if need be
+		if candidate < best:
+			best = candidate
+		elif candidate > best:
+			best = best
+		return best
+	def localSearch(self, best_List, noOfIterations):
+		iterations = noOfIterations
+		while iterations > 0:
+			candidate = []
+			candidate = self.stochasticTwoOpt(best_List)
+			if candidate < best_List:
+				best_List = candidate
+			iterations -=1
+		return best_List
+pre_morning_rush  = Search(int(1.5 * 60 * 60), datetime.time( 6, 0, 0)) #  6:00 –  7:30
+pre_morning_rush.Iterated_Local_Search()
+morning_rush      = Search(int(2.0 * 60 * 60), datetime.time( 7, 30, 0)) #  7:30 –  9:30
+morning_rush.Iterated_Local_Search()
+day               = Search(int(7.5 * 60 * 60), datetime.time( 9, 30, 0)) #  9:30 – 17:00
+day.Iterated_Local_Search()
+evening_rush      = Search(int(2.0 * 60 * 60), datetime.time(17,  0, 0)) # 17:00 – 19:00
+evening_rush.Iterated_Local_Search()
+post_evening_rush = Search(int(2.0 * 60 * 60), datetime.time(19,  0, 0)) # 19:00 – 21:00
+post_evening_rush.Iterated_Local_Search()
