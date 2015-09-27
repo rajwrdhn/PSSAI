@@ -504,13 +504,13 @@ build_conflict_mask()
 build_trambus_schedules()
 
 
-pre_morning_rush  = Schedule(int(1.5 * 60 * 60), datetime.time( 6,  0, 0)) #  6:00 –  7:30
-morning_rush      = Schedule(int(2.0 * 60 * 60), datetime.time( 7, 30, 0)) #  7:30 –  9:30
-day               = Schedule(int(7.5 * 60 * 60), datetime.time( 9, 30, 0)) #  9:30 – 17:00
-evening_rush      = Schedule(int(2.0 * 60 * 60), datetime.time(17,  0, 0)) # 17:00 – 19:00
-post_evening_rush = Schedule(int(2.0 * 60 * 60), datetime.time(19,  0, 0)) # 19:00 – 21:00
+#pre_morning_rush  = Schedule(int(1.5 * 60 * 60), datetime.time( 6,  0, 0)) #  6:00 –  7:30
+#morning_rush      = Schedule(int(2.0 * 60 * 60), datetime.time( 7, 30, 0)) #  7:30 –  9:30
+#day               = Schedule(int(7.5 * 60 * 60), datetime.time( 9, 30, 0)) #  9:30 – 17:00
+#evening_rush      = Schedule(int(2.0 * 60 * 60), datetime.time(17,  0, 0)) # 17:00 – 19:00
+#post_evening_rush = Schedule(int(2.0 * 60 * 60), datetime.time(19,  0, 0)) # 19:00 – 21:00
 
-full_day = Schedule(int(15 * 60 * 60), datetime.time(6, 0, 0)) # 6:00 – 21:00
+#full_day = Schedule(int(15 * 60 * 60), datetime.time(6, 0, 0)) # 6:00 – 21:00
 
-for sched in pre_morning_rush, morning_rush, day, evening_rush, post_evening_rush, full_day:
-    sched.initial_constraints()
+#for sched in pre_morning_rush, morning_rush, day, evening_rush, post_evening_rush, full_day:
+#    sched.initial_constraints()
