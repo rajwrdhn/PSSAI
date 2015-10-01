@@ -502,7 +502,7 @@ class Schedule:
     def evaluate_rush_hour(self):
         self.initial_constraints()
         self.satisfied(False)
-        print(self.data)
+        #print(self.data)
         #noOfIterations = 15 * 60 * 60
         #self.mutate()
 		#During rush hour we need to maximize the number of
@@ -529,12 +529,12 @@ class Schedule:
                 comparison_List_initial = comparison_List_initial
 				#number of cars passing straight and left w.r.t. Borsbergstrasse
                 noOfcarsPassing = (2 *noOfSeconds_Green_Phase)
-        print(noOfcarsPassing)
+        #print(noOfcarsPassing)
         return True	
     def evaluate_Non_Rush_Hour(self):
         self.initial_constraints()
         self.satisfied(False)
-        print(self.data)
+        #print(self.data)
         #noOfIterations = 15 * 60 * 60
         #self.mutate()
 		#During rush hour we need to minimize the number of
@@ -561,7 +561,7 @@ class Schedule:
                 comparison_List = comparison_List
 				#number of cars passing straight and left w.r.t. Borsbergstrasse
                 noOfcarsPassing = (2 *noOfSeconds_Green_Phase)
-        print(noOfcarsPassing)
+        #print(noOfcarsPassing)
         return True	
 
 build_conflict_mask()
