@@ -31,7 +31,7 @@ TR = 1 # schedule entries per second
 SECONDS_PER_CAR = 2.0
 
 
-from trambus2 import *
+from trambus import *
 
 # Bitmask for each time unit of the day which traffic light states are important
 # regarding the trams/busses
