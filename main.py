@@ -692,6 +692,7 @@ class Schedule:
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-o', '--output', help='Writes each optimized schedule to a file in the given directory')
+parser.add_argument('-s', '--sim-anneal', help='Performs simulated annealing instead of plain hill-climbing', action='store_true')
 
 args = parser.parse_args()
 
@@ -710,6 +711,11 @@ for cur_sched in pre_morning_rush, morning_rush, day, evening_rush, post_evening
     cur_sched.initial_constraints()
     cur_sched.evaluate()
 
+    sim_anneal_initial_temperature = 42.0
+    sim_anneal_base_temperature = 1.e-5
+    sim_anneal_cooling_rate = 4.e-2
+    sim_anneal_cutoff = 1.001e-5
+
     improvements_per_100 = 0
     for iteration in range(1000):
         if iteration % 100 == 0:
@@ -726,8 +732,23 @@ for cur_sched in pre_morning_rush, morning_rush, day, evening_rush, post_evening
             continue
 
         new_sched.evaluate()
-        if cur_sched.compare(new_sched) > 0:
-            continue
+        if args.sim_anneal:
+            difference = cur_sched.compare(new_sched)
+            temperature = (sim_anneal_initial_temperature - sim_anneal_base_temperature) \
+                          * math.exp(-iteration * sim_anneal_cooling_rate) \
+                          + sim_anneal_base_temperature
+            if temperature >= sim_anneal_cutoff and difference >= 0:
+                try:
+                    p = 1.0 / (1.0 + math.exp(difference / temperature))
+                except:
+                    p = 0.0
+                if random.random() >= p:
+                    continue
+            elif temperature < sim_anneal_cutoff and difference >= 0:
+                continue
+        else:
+            if cur_sched.compare(new_sched) >= 0:
+                continue
 
         improvements_per_100 += 1
 
