@@ -246,7 +246,7 @@ def build_trambus_schedules():
 
 
 class Schedule:
-    def __init__(self, seconds, start_time, is_rush):
+    def __init__(self, name, seconds, start_time, is_rush):
         self.data = array.array('h')
         for i in range(seconds * TR):
             self.data.append(0)
@@ -254,6 +254,7 @@ class Schedule:
         self.start_index = (start_time.hour * 60 + start_time.minute) * 60 * TR
         self.end_index = self.start_index + self.length
         self.is_rush = is_rush
+        self.name = name
 
     def initial_constraints(self):
         # c) Between switching of green phases consider 3 sec of red phase for
@@ -701,13 +702,17 @@ build_conflict_mask()
 build_trambus_schedules()
 
 
-pre_morning_rush  = Schedule(int(1.5 * 60 * 60), datetime.time( 6,  0, 0), False) #  6:00 –  7:30
-morning_rush      = Schedule(int(2.0 * 60 * 60), datetime.time( 7, 30, 0),  True) #  7:30 –  9:30
-day               = Schedule(int(7.5 * 60 * 60), datetime.time( 9, 30, 0), False) #  9:30 – 17:00
-evening_rush      = Schedule(int(2.0 * 60 * 60), datetime.time(17,  0, 0),  True) # 17:00 – 19:00
-post_evening_rush = Schedule(int(2.0 * 60 * 60), datetime.time(19,  0, 0), False) # 19:00 – 21:00
+pre_morning_rush  = Schedule('Morning',          int(1.5 * 60 * 60), datetime.time( 6,  0, 0), False) #  6:00 –  7:30
+morning_rush      = Schedule('First rush hour',  int(2.0 * 60 * 60), datetime.time( 7, 30, 0),  True) #  7:30 –  9:30
+day               = Schedule('Day',              int(7.5 * 60 * 60), datetime.time( 9, 30, 0), False) #  9:30 – 17:00
+evening_rush      = Schedule('Second rush hour', int(2.0 * 60 * 60), datetime.time(17,  0, 0),  True) # 17:00 – 19:00
+post_evening_rush = Schedule('Evening',          int(2.0 * 60 * 60), datetime.time(19,  0, 0), False) # 19:00 – 21:00
 
 for cur_sched in pre_morning_rush, morning_rush, day, evening_rush, post_evening_rush:
+    if cur_sched.name != 'Morning':
+        print("\n")
+    print("Finding improved “%s” schedule:\n===" % (cur_sched.name))
+
     cur_sched.initial_constraints()
     cur_sched.evaluate()
 
