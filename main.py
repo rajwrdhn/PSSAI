@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import array
+import copy
 import datetime
 import math
 import sys
@@ -24,6 +25,8 @@ def ffs(value):
 
 # time resolution
 TR = 1 # schedule entries per second
+
+SECONDS_PER_CAR = 2.0
 
 
 from trambus2 import *
@@ -60,6 +63,17 @@ TLP_MIN_GREEN_TIME = [
     round(13.50 * TR + 0.5), # north: 13.50 s
     round(19.20 * TR + 0.5), # west:  19.20 s
     round(16.80 * TR + 0.5)  # south: 16.80 s
+]
+
+TLC_CAR_COUNT = [
+     6.40,
+     8.80,
+    12.78,
+    14.20,
+     3.00,
+    11.25,
+    10.30,
+     5.60
 ]
 
 
@@ -213,13 +227,14 @@ def build_trambus_schedules():
 
 
 class Schedule:
-    def __init__(self, seconds, start_time):
+    def __init__(self, seconds, start_time, is_rush):
         self.data = array.array('h')
         for i in range(seconds * TR):
             self.data.append(0)
         self.length = self.data.buffer_info()[1]
         self.start_index = (start_time.hour * 60 + start_time.minute) * 60 * TR
         self.end_index = self.start_index + self.length
+        self.is_rush = is_rush
 
     def initial_constraints(self):
         # c) Between switching of green phases consider 3 sec of red phase for
@@ -232,6 +247,9 @@ class Schedule:
         while i < self.end_index:
             while i < self.end_index and not trambus_day_tl_value[i]:
                 i += 1
+            if i >= self.end_index:
+                break
+
             if trambus_day_tl_value[i] & ((1 << TLC_EAST_SR) | (1 << TLC_WEST_SR)):
                 this_config = 0
             elif trambus_day_tl_value[i] & ((1 << TLC_EAST_L) | (1 << TLC_WEST_L)):
@@ -358,7 +376,7 @@ class Schedule:
             i += 1
 
         # And now enter the last one
-        config - last_config
+        config = last_config
         time = last_index - self.start_index
         while time < self.length:
             for i in range(min(self.length - time, 27 * TR)):
@@ -473,7 +491,7 @@ class Schedule:
         red_time = 12 * [0]
         for i in range(self.length):
             configuration = self.data[i]
-            for j in range(8):
+            for j in range(12):
                 if configuration & (1 << j):
                     red_time[j] = 0
                 else:
@@ -498,83 +516,136 @@ class Schedule:
                 return False
 
         return True
-#Please check the code for the evaluation function
+
+    # Specifying a config_index allows you to specify which traffic light phase
+    # to adjust.
+    def mutate(self, config_index=None, shorten=False):
+        if config_index is None:
+            array_index = random.randrange(self.length)
+            shorten = random.randrange(2) == 1
+        else:
+            current_config_index = 0
+            in_red_phase = self.data[0] == 0
+            for array_index in range(self.length):
+                if current_config_index == config_index:
+                    break
+                if self.data[array_index] == 0 and not in_red_phase:
+                    in_red_phase = True
+                elif self.data[array_index] != 0 and in_red_phase:
+                    current_config_index += 1
+                    in_red_phase = False
+        while array_index < self.length and self.data[array_index] == 0:
+            array_index += 1
+        # If we have a red phase at the end of the schedule, decrease the index
+        # by 3 * TR + 1, since no red phase lasts longer than three seconds
+        if array_index >= self.length:
+            array_index = self.length - 3 * TR - 1
+
+        configuration = self.data[array_index]
+
+        index = array_index
+        while index < self.length and self.data[index] != 0:
+            index += 1
+        if index >= self.length:
+            return
+
+        if shorten:
+            self.data[index - 1] = 0
+            if index + 3 * TR < self.length:
+                self.data[index + 3 * TR - 1] = self.data[index + 3 * TR]
+        else:
+            self.data[index] = configuration
+            if index + 3 * TR < self.length:
+                self.data[index + 3 * TR] = 0
+
     def evaluate_rush_hour(self):
-        self.initial_constraints()
-        self.satisfied(False)
-        #print(self.data)
-        #noOfIterations = 15 * 60 * 60
-        #self.mutate()
-		#During rush hour we need to maximize the number of
-		#cars passing through Borsbergstrasse. 
-		#count the green phase always for borsbergstrasse(2565) in seconds 
-		#and also number of cars associated with it 
+        #During rush hour we need to maximize the number of
+        #cars passing, with priority on Borsbergstrasse.
+        #Keep the current green phase duration in seconds
+        #and also number of cars associated with it
         #for every unit of green phase
-        noOfSeconds_Green_Phase = 0
-        noOfcarsPassing = 0
-        comparison_List = [noOfSeconds_Green_Phase, noOfcarsPassing]
-        comparison_List_initial = [noOfSeconds_Green_Phase, noOfcarsPassing]
-        for i in range(len(self.data)):
-            if self.data[i] == 2565 :
-                noOfSeconds_Green_Phase = 0
-                noOfcarsPassing = 0
-                for i in range(len(self.data)):
-                    if self.data[i] == 2565 :
-                        noOfSeconds_Green_Phase += 1
-                    else :
-                        break
-            if comparison_List > comparison_List_initial:
-                comparison_List_initial = comparison_List
-            else :
-                comparison_List_initial = comparison_List_initial
-				#number of cars passing straight and left w.r.t. Borsbergstrasse
-                noOfcarsPassing = (2 *noOfSeconds_Green_Phase)
-        #print(noOfcarsPassing)
-        return True	
-    def evaluate_Non_Rush_Hour(self):
-        self.initial_constraints()
-        self.satisfied(False)
-        #print(self.data)
-        #noOfIterations = 15 * 60 * 60
-        #self.mutate()
-		#During rush hour we need to minimize the number of
-		#cars passing through Borsbergstrasse. 
-		#count the green phase always for borsbergstrasse(1290,) in seconds 
-		#and also number of cars associated with it 
-        #for every unit of green phase
-        noOfSeconds_Green_Phase = 0
-        noOfcarsPassing = 0
-        comparison_List = [noOfSeconds_Green_Phase, noOfcarsPassing]
-        comparison_List_initial = [noOfSeconds_Green_Phase, noOfcarsPassing]
-        for i in range(len(self.data)):
-            if self.data[i] == 1290 :
-                noOfSeconds_Green_Phase = 0
-                noOfcarsPassing = 0
-                for i in range(len(self.data)):
-                    if self.data[i] == 1290 :
-                        noOfSeconds_Green_Phase += 1
-                    else :
-                        break
-            if comparison_List < comparison_List_initial:
-                comparison_List_initial = comparison_List
-            else :
-                comparison_List = comparison_List
-				#number of cars passing straight and left w.r.t. Borsbergstrasse
-                noOfcarsPassing = (2 *noOfSeconds_Green_Phase)
-        #print(noOfcarsPassing)
-        return True	
+
+        noOfSeconds_GreenPhase = [0.0] * 8
+        comparison_List = [0.0, 0.0] # total number of cars; from Borsbergstraße/Schandauer Straße
+
+        for i in range(self.length):
+            for tl in range(8):
+                if self.data[i] & (1 << tl):
+                    noOfSeconds_GreenPhase[tl] += 1.0 / TR
+                elif noOfSeconds_GreenPhase[tl] > 0.0:
+                    cars = noOfSeconds_GreenPhase[tl] / SECONDS_PER_CAR
+                    cars = min(cars, TLC_CAR_COUNT[tl])
+                    comparison_List[0] += cars
+                    if tl == TLC_EAST_SR or tl == TLC_EAST_L or \
+                       tl == TLC_WEST_SR or tl == TLC_WEST_L:
+                        comparison_List[1] += cars
+                    noOfSeconds_GreenPhase[tl] = 0.0
+
+        return comparison_List
+
+    def evaluate_non_rush_hour(self):
+        #During non-rush-hour we need to minimize the average waiting time, i.e.
+        #continuous red phase duration, with priority on Borsbergstrasse.
+
+        noOfSeconds_RedPhase = [0.0] * 8
+        total_red_time = [0.0, 0.0] # total; from Borsbergstraße/Schandauer Straße
+        red_phase_count = [0, 0] # ditto
+
+        for i in range(self.length):
+            for tl in range(8):
+                if (self.data[i] & (1 << tl)) == 0:
+                    noOfSeconds_RedPhase[tl] += 1.0 / TR
+                elif noOfSeconds_RedPhase[tl] > 0.0:
+                    total_red_time[0] += noOfSeconds_RedPhase[tl]
+                    red_phase_count[0] += 1
+                    if tl == TLC_EAST_SR or tl == TLC_EAST_L or \
+                       tl == TLC_WEST_SR or tl == TLC_WEST_L:
+                        total_red_time[1] += noOfSeconds_RedPhase[tl]
+                        red_phase_count[1] += 1
+                    noOfSeconds_RedPhase[tl] = 0.0
+
+        #Negative average waiting time; negative because this is going to be
+        #maximized.
+        comparison_List = [
+            -total_red_time[0] / red_phase_count[0],
+            -total_red_time[1] / red_phase_count[1]
+        ]
+        return comparison_List
+
+    def evaluate(self):
+        if self.is_rush:
+            return self.evaluate_rush_hour()
+        else:
+            return self.evaluate_non_rush_hour()
+
 
 build_conflict_mask()
 build_trambus_schedules()
 
 
-pre_morning_rush  = Schedule(int(1.5 * 60 * 60), datetime.time( 6,  0, 0)) #  6:00 –  7:30
-morning_rush      = Schedule(int(2.0 * 60 * 60), datetime.time( 7, 30, 0)) #  7:30 –  9:30
-day               = Schedule(int(7.5 * 60 * 60), datetime.time( 9, 30, 0)) #  9:30 – 17:00
-evening_rush      = Schedule(int(2.0 * 60 * 60), datetime.time(17,  0, 0)) # 17:00 – 19:00
-post_evening_rush = Schedule(int(2.0 * 60 * 60), datetime.time(19,  0, 0)) # 19:00 – 21:00
+pre_morning_rush  = Schedule(int(1.5 * 60 * 60), datetime.time( 6,  0, 0), False) #  6:00 –  7:30
+morning_rush      = Schedule(int(2.0 * 60 * 60), datetime.time( 7, 30, 0),  True) #  7:30 –  9:30
+day               = Schedule(int(7.5 * 60 * 60), datetime.time( 9, 30, 0), False) #  9:30 – 17:00
+evening_rush      = Schedule(int(2.0 * 60 * 60), datetime.time(17,  0, 0),  True) # 17:00 – 19:00
+post_evening_rush = Schedule(int(2.0 * 60 * 60), datetime.time(19,  0, 0), False) # 19:00 – 21:00
 
-full_day = Schedule(int(15 * 60 * 60), datetime.time(6, 0, 0)) # 6:00 – 21:00
+for cur_sched in pre_morning_rush, morning_rush, day, evening_rush, post_evening_rush:
+    cur_sched.initial_constraints()
 
-for sched in pre_morning_rush, morning_rush, day, evening_rush, post_evening_rush, full_day:
-    sched.initial_constraints()
+    cs_eval = cur_sched.evaluate()
+
+    for iteration in range(1000):
+        new_sched = copy.deepcopy(cur_sched)
+
+        new_sched.mutate()
+        if not new_sched.satisfied():
+            continue
+
+        ns_eval = new_sched.evaluate()
+        if ns_eval <= cs_eval:
+            continue
+
+        cur_sched = new_sched
+        cs_eval = ns_eval
+
+    break
