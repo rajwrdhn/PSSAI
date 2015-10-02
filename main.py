@@ -23,7 +23,8 @@ def ffs(value):
 # schedule covers.
 
 
-# time resolution
+# time resolution; DO NOT set this to anything else but 1 without fixing the
+# code
 TR = 1 # schedule entries per second
 
 SECONDS_PER_CAR = 2.0
@@ -74,6 +75,23 @@ TLC_CAR_COUNT = [
     11.25,
     10.30,
      5.60
+]
+
+TL_NAME = [
+    "east straight",
+    "north straight",
+    "west straight",
+    "south straight",
+
+    "east left",
+    "north left",
+    "west left",
+    "south left",
+
+    "east ped.",
+    "north ped.",
+    "west ped.",
+    "south ped."
 ]
 
 
@@ -427,10 +445,7 @@ class Schedule:
         if not self.satisfied(True):
             print("Error: Initial schedule does not satisfy contraints", file=sys.stderr)
             exit(1)
-    #call for the display and satisfying the initial constraints
-    def display_Initial(self):
-	    #print("print the initial condition:",self.data.tolist())
-	    return self.data.tolist()
+
     def make_green(self, second, traffic_light):
         # Make it green
         self.data[second] |= (1 << traffic_light)
@@ -566,7 +581,7 @@ class Schedule:
         #for every unit of green phase
 
         noOfSeconds_GreenPhase = [0.0] * 8
-        comparison_List = [0.0, 0.0] # total number of cars; from Borsbergstraße/Schandauer Straße
+        self.evaluation = [0.0, 0.0] # total number of cars; from Borsbergstraße/Schandauer Straße
 
         for i in range(self.length):
             for tl in range(8):
@@ -575,13 +590,13 @@ class Schedule:
                 elif noOfSeconds_GreenPhase[tl] > 0.0:
                     cars = noOfSeconds_GreenPhase[tl] / SECONDS_PER_CAR
                     cars = min(cars, TLC_CAR_COUNT[tl])
-                    comparison_List[0] += cars
+                    self.evaluation[0] += cars
                     if tl == TLC_EAST_SR or tl == TLC_EAST_L or \
                        tl == TLC_WEST_SR or tl == TLC_WEST_L:
-                        comparison_List[1] += cars
+                        self.evaluation[1] += cars
                     noOfSeconds_GreenPhase[tl] = 0.0
 
-        return comparison_List
+        return
 
     def evaluate_non_rush_hour(self):
         #During non-rush-hour we need to minimize the average waiting time, i.e.
@@ -606,17 +621,72 @@ class Schedule:
 
         #Negative average waiting time; negative because this is going to be
         #maximized.
-        comparison_List = [
+        self.evaluation = [
             -total_red_time[0] / red_phase_count[0],
             -total_red_time[1] / red_phase_count[1]
         ]
-        return comparison_List
+        return
 
     def evaluate(self):
         if self.is_rush:
-            return self.evaluate_rush_hour()
+            self.evaluate_rush_hour()
         else:
-            return self.evaluate_non_rush_hour()
+            self.evaluate_non_rush_hour()
+
+    def compare(self, new):
+        if self.evaluation[0] != new.evaluation[0]:
+            return self.evaluation[0] - new.evaluation[0]
+        else:
+            # FIXME: Hardcoding the divisor is ugly
+            if self.is_rush:
+                # For rush hours, we count cars; those get up to a couple thousand.
+                return (self.evaluation[1] - new.evaluation[1]) * 1.e-4
+            else:
+                # For non-rush-hours, we count time; that gets up to below 100.
+                return (self.evaluation[1] - new.evaluation[1]) * 1.e-2
+
+    def print(self, fp):
+        config = 0
+
+        for i in range(self.length):
+            if self.data[i] != config:
+                timep = i + self.start_index
+
+                if TR == 1:
+                    print('%02i:%02i:%02i: [' % (timep // 3600, (timep // 60) % 60, timep % 60), file=fp, end='')
+                else:
+                    timep = timep / TR
+                    timep_int = int(timep)
+                    timep_fract = timep % 1.0
+                    print('%02i:%02i:%02i.%f: [' % (timep_int // 3600, (timep_int // 60) % 60, timep_int % 60, timep_fract), file=fp, end='')
+
+                first = True
+                to_green = False
+                for tl in range(12):
+                    if (self.data[i] ^ config) & (1 << tl):
+                        if first:
+                            comma = ''
+                        else:
+                            comma = ', '
+                        print('%s%s' % (comma, TL_NAME[tl]), file=fp, end='')
+                        first = False
+                        to_green = bool(self.data[i] & (1 << tl))
+
+                if to_green:
+                    gr = 'green'
+                else:
+                    gr = 'red'
+                print('] to %s' % gr, file=fp)
+
+                config = self.data[i]
+
+    def print_evaluation(self, fp):
+        if self.is_rush:
+            print('Total cars passing: %f' % self.evaluation[0])
+            print('Cars on BBS/SS:     %f' % self.evaluation[1])
+        else:
+            print('Average waiting time: %f' % -self.evaluation[0])
+            print('On BBS/SS:            %f' % -self.evaluation[1])
 
 
 build_conflict_mask()
@@ -631,21 +701,32 @@ post_evening_rush = Schedule(int(2.0 * 60 * 60), datetime.time(19,  0, 0), False
 
 for cur_sched in pre_morning_rush, morning_rush, day, evening_rush, post_evening_rush:
     cur_sched.initial_constraints()
+    cur_sched.evaluate()
 
-    cs_eval = cur_sched.evaluate()
-
+    improvements_per_100 = 0
     for iteration in range(1000):
+        if iteration % 100 == 0:
+            print('[%i] (%i improvements)' % (iteration, improvements_per_100))
+            cur_sched.print_evaluation(sys.stdout)
+            print('---')
+
+            improvements_per_100 = 0
+
         new_sched = copy.deepcopy(cur_sched)
 
         new_sched.mutate()
         if not new_sched.satisfied():
             continue
 
-        ns_eval = new_sched.evaluate()
-        if ns_eval <= cs_eval:
+        new_sched.evaluate()
+        if cur_sched.compare(new_sched) > 0:
             continue
 
-        cur_sched = new_sched
-        cs_eval = ns_eval
+        improvements_per_100 += 1
 
-    break
+        cur_sched = new_sched
+
+    print('[%i] (%i improvements)' % (1000, improvements_per_100))
+    cur_sched.print_evaluation(sys.stdout)
+    print('===')
+
