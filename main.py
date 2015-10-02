@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+import argparse
 import array
 import copy
 import datetime
@@ -689,6 +690,12 @@ class Schedule:
             print('On BBS/SS:            %f' % -self.evaluation[1])
 
 
+parser = argparse.ArgumentParser()
+parser.add_argument('-o', '--output', help='Writes each optimized schedule to a file in the given directory')
+
+args = parser.parse_args()
+
+
 build_conflict_mask()
 build_trambus_schedules()
 
@@ -730,3 +737,17 @@ for cur_sched in pre_morning_rush, morning_rush, day, evening_rush, post_evening
     cur_sched.print_evaluation(sys.stdout)
     print('===')
 
+    if args.output:
+        s = int(cur_sched.start_index / TR)
+        e = int(cur_sched.end_index / TR)
+        name = '%s/%02i_%02i_%02i-%02i_%02i_%02i' \
+               % (args.output, \
+                  s // 3600, (s // 60) % 60, s % 60,
+                  e // 3600, (e // 60) % 60, e % 60)
+
+        fp = open(name, 'w')
+        if fp is None:
+            print('Failed to open “%s”' % name, file=sys.stderr)
+            break
+        cur_sched.print(fp)
+        fp.close
